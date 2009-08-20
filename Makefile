@@ -106,7 +106,7 @@ spotless: clean
 	rm -f $(PRE_PLUGIN)
 	( [ -d $(PRE_OUT_DIR) ] && rmdir -p $(PRE_OUT_DIR) || true )
 
-include *.d
+-include *.d
 
 $(PRE_PLUGIN): $(PRE_OBJS)
 	$(PRE_CC) $(PRE_LDFLAGS) -shared $(PRE_OBJS) -o $@
