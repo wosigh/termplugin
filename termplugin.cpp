@@ -812,7 +812,7 @@ static bool BoolValue(const NPVariant *value)
 
 typedef enum
 {
-	eMethod_sendEnter,
+	//eMethod_sendEnter,
 	eMethod_setTerminalHeight,
 	eMethod_setFont,
 	eMethod_setColors,
@@ -833,7 +833,7 @@ typedef enum
 }eMethods;
 const static SUPPORTED_OBJECTS supported_methods[] =
 {
-		{ "sendEnter",               eMethod_sendEnter,                0,  "" },
+		//{ "sendEnter",               eMethod_sendEnter,                0,  "" },
 		{ "setTerminalHeight",       eMethod_setTerminalHeight,        1,  "height" },
 		{ "setFont",                 eMethod_setFont,                  2,  "width, height" },
 		{ "setColors",               eMethod_setColors,                2,  "fgColor, bgColor" },
@@ -927,9 +927,9 @@ Object_Invoke(
 		NPN_ForceRedraw(myobj.instance);
 		return true;
 	}
-	case eMethod_sendEnter:
-		myobj.key_manager.keyPressed(13,false,false,false,false);
-		return true;
+	//case eMethod_sendEnter:
+	//	myobj.key_manager.keyPressed(13,false,false,false,false);
+	//	return true;
 	}
 
 	return false;
@@ -1481,6 +1481,9 @@ NPP_GetValue(NPP instance, NPPVariable variable, void *value) {
 	case NPPVpluginScriptableNPObject:
 		*(NPObject **)value = GetScriptableObject(instance);
 		break;
+	//case npPalmCachePluginValue:
+	//	*(int *)value = 1;
+	//	break;
 	default:
 		return NPERR_GENERIC_ERROR;
 	}
