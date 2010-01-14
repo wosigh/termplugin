@@ -1,4 +1,4 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -651,13 +651,18 @@ NPUTF8 *NPN_UTF8FromIdentifier(NPIdentifier identifier)
 
 static NPObject *Object_Allocate(NPP npp,NPClass *aClass)
 {
-	return new MyObject(npp);
+        MyObject *obj = new MyObject(npp);
+//	return new MyObject(npp);
+	my_fprintf(stderr,"term: created object at at %p\n",&obj);
+	return obj;
 }
 
 static void Object_Deallocate(NPObject *npobj)
 {
 	my_fprintf(stderr,"term: In Object_Deallocate\n");
+	my_fprintf(stderr,"term: was asked to delete object at %p\n",&npobj);
 	delete (MyObject *)npobj;
+	my_fprintf(stderr,"term: exiting Object_Deallocate\n");
 }
 
 static bool

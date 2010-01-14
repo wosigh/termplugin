@@ -41,7 +41,7 @@
 #OPTIMIZATION=-g
 
 # Release
-OPTIMIZATION=-O2 -DNDEBUG -fexpensive-optimizations -fomit-frame-pointer -frename-registers -fvisibility-inlines-hidden
+OPTIMIZATION=-O2 -fexpensive-optimizations -fomit-frame-pointer -frename-registers -fvisibility-inlines-hidden
 PRE_OPTIMIZATION=-march=armv4t -mtune=arm920t
 
 #CXXFLAGS = -MD -Wall -DXP_UNIX=1 -fPIC $(OPTIMIZATION) `pkg-config --cflags glib-2.0`
