@@ -652,15 +652,14 @@ NPUTF8 *NPN_UTF8FromIdentifier(NPIdentifier identifier)
 static NPObject *Object_Allocate(NPP npp,NPClass *aClass)
 {
         MyObject *obj = new MyObject(npp);
-//	return new MyObject(npp);
-	my_fprintf(stderr,"term: created object at at %p\n",&obj);
+	my_fprintf(stderr,"term: created object @  %p\n",obj);
 	return obj;
 }
 
 static void Object_Deallocate(NPObject *npobj)
 {
 	my_fprintf(stderr,"term: In Object_Deallocate\n");
-	my_fprintf(stderr,"term: was asked to delete object at %p\n",&npobj);
+	my_fprintf(stderr,"term: was asked to delete object @ %p\n",npobj);
 	delete (MyObject *)npobj;
 	my_fprintf(stderr,"term: exiting Object_Deallocate\n");
 }
