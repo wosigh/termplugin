@@ -235,7 +235,9 @@ static void SpawnExit(SpawnData *spawn_data,int exit_signal,int exit_code)
 	spawn_data->exit_code = exit_code;
 }
 
+#if 0
 static void SIGCHLDHandler(int signum);
+#endif
 
 void Spawn_CheckChildExit(SpawnData *spawn_data,int wait_for_exit)
 {
@@ -299,17 +301,21 @@ void Spawn_CheckChildExit(SpawnData *spawn_data,int wait_for_exit)
 	if (spawn_data) {
 		SpawnExit(spawn_data,exit_signal,exit_code);
 	}
+#if 0
 #ifdef sgi
 	signal(SIGCHLD,SIGCHLDHandler);
 #endif
+#endif
 }
 
+#if 0
 static void SIGCHLDHandler(int signum)
 {
 	if (orig_child_signal_handler) {
 		(*orig_child_signal_handler)(signum);
 	}
 }
+#endif
 
 static void OpenPty(SpawnData *spawn_data)
 {
@@ -424,6 +430,7 @@ static void HandleSIGINT(int signum)
 
 void Spawn_Exec(SpawnData *spawn_data,char **argv)
 {
+#if 0
 	{
 		/* re-install our SIGCHLD handler if it was removed */
 		void (*old_signal_handler)(int) =
@@ -437,6 +444,7 @@ void Spawn_Exec(SpawnData *spawn_data,char **argv)
 			orig_child_signal_handler = old_signal_handler;
 		}
 	}
+#endif
 	{
 		int child_pid = fork();
 		int session_id = 0;
@@ -454,7 +462,9 @@ void Spawn_Exec(SpawnData *spawn_data,char **argv)
 			signal(SIGINT,SIG_DFL);
 #endif
 			signal(SIGQUIT,SIG_DFL);
+#if 0
 			signal(SIGCHLD,SIG_DFL);
+#endif
 
 			/* Close all open files so the child won't inherit them.  An example */
 			/* problem is the X11 display socket.  If the child inheretid this, */
@@ -839,6 +849,7 @@ void Spawn_SetDefaultProcs(SpawnData *spawn_data,void *client_data)
 
 void Spawn_Init()
 {
+#if 0
 	assert(!orig_child_signal_handler);
 	orig_child_signal_handler = signal(SIGCHLD,SIGCHLDHandler);
 	if (orig_child_signal_handler==SIG_ERR) {
@@ -846,4 +857,5 @@ void Spawn_Init()
 		perror("signal");
 	}
 	assert(orig_child_signal_handler!=SIGCHLDHandler);
+#endif
 }

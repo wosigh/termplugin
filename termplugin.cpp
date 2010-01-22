@@ -585,7 +585,7 @@ static void
 fillPluginFunctionTable(NPPluginFuncs* pFuncs)
 {
 	pFuncs->version = 11;
-	pFuncs->size = sizeof(*pFuncs);
+	pFuncs->size = sizeof(pFuncs);
 	pFuncs->newp = NPP_New;
 	pFuncs->destroy = NPP_Destroy;
 	pFuncs->setwindow = NPP_SetWindow;
