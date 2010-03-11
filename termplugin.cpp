@@ -631,7 +631,10 @@ NP_GetMIMEDescription()
 
 NPObject *NPN_CreateObject(NPP npp, NPClass *aClass)
 {
-	return NPNFuncs.createobject(npp, aClass);
+	NPObject *obj = NPNFuncs.createobject(npp, aClass);
+	obj = NPNFuncs.retainobject(obj);
+
+	return obj;
 }
 
 void NPN_ForceRedraw(NPP npp)
