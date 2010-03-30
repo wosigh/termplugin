@@ -792,6 +792,11 @@ void Spawn_Send(SpawnData *spawn_data,const char *str,int len)
 
 int Spawn_Kill(SpawnData *spawn_data,const char *signame)
 {
+    if (!spawn_data)
+    {
+        fprintf(stderr, "NULL spawn_data passed to Spawn_Kill\n");
+        return 0;
+    }
 	if (spawn_data->child_pid==-1) {
 		fprintf(stderr,"Child is already dead\n");
 		return 1;
