@@ -205,6 +205,8 @@ struct MyObject : NPObject, KeyManager::Client {
 	NPObject *keyStatesParentObj;
 	bool showKeyStates;
 	bool drawEnabled;
+    int pixel_width;
+    int pixel_height;
 
 	MyObject(NPP i);
 	~MyObject();
@@ -274,6 +276,7 @@ struct MyObject : NPObject, KeyManager::Client {
 	void stopSelectThread();
 	static void *selectThread(void *);
 	void runSelect();
+    void redraw();
 	static void masterReady(void *obj_ptr);
 	void start(char *user);
 };
@@ -327,7 +330,21 @@ void MyObject::start(char *user)
 void MyObject::masterReady(void *obj_ptr)
 {
 	my_fprintf(stderr,"term: masterReady: forcing redraw\n");
-	NPN_ForceRedraw(((MyObject *)obj_ptr)->instance);
+	((MyObject *)obj_ptr)->redraw();
+}
+
+void MyObject::redraw()
+{
+    //Calculate rect to invalidate
+    NPRect screenRect = { 0, 0, pixel_height, pixel_width };
+
+    //Tell the browser that this area is invalid
+    //and needs to be redrawn
+    NPNFuncs.invalidaterect( instance, &screenRect );
+
+    //Force that redraw event to be sent *now* not
+    //when the browser feels like it
+    NPNFuncs.forceredraw( instance );
 }
 
 void MyObject::runSelect()
@@ -343,7 +360,7 @@ void MyObject::runSelect()
 #else
 		pthread_mutex_lock(&draw_mutex);
 		fprintf(stderr,"Forcing redraw\n");
-		NPN_ForceRedraw(instance);
+        redraw();
 		fprintf(stderr,"Waiting for redraw\n");
 		pthread_cond_wait(&drawn_cond,&draw_mutex);
 		fprintf(stderr,"Done redraw\n");
@@ -894,7 +911,7 @@ Object_Invoke(
 	case eMethod_sendTap:
 		myobj.event_x = IntValue(&args[0]);
 		myobj.event_y = IntValue(&args[1]);
-		NPN_ForceRedraw(myobj.instance);
+        myobj.redraw();
 		return true;
 	case eMethod_setFont:
 	{
@@ -931,7 +948,7 @@ Object_Invoke(
 	}
 	case eMethod_redraw:
 	{
-		NPN_ForceRedraw(myobj.instance);
+        myobj.redraw();
 		return true;
 	}
 	//case eMethod_sendEnter:
@@ -1027,7 +1044,7 @@ Object_SetProperty(
 		case eProperty_drawEnabled:
 			myobj->drawEnabled = IntValue(value);
 			if(myobj->drawEnabled)
-				NPN_ForceRedraw(myobj->instance);		//	cause a redraw now
+                myobj->redraw();
 			break;
 		case eProperty_keyStatesParentObj:
 			saveObj(value, &myobj->keyStatesParentObj, "keyStatesParentObj");
@@ -1042,7 +1059,7 @@ Object_SetProperty(
 			int command = IntValue(value);
 			my_fprintf(stderr,"  command=%d\n",command);
 			if (command==2) {
-				NPN_ForceRedraw(myobj->instance);
+                myobj->redraw();
 			}
 			break;
 		}
@@ -1146,6 +1163,10 @@ NPP_SetWindow(NPP instance, NPWindow* window) {
 	if (!myobj_ptr) {
 		return NPERR_NO_ERROR;
 	}
+
+    myobj_ptr->pixel_width = window->width;
+    myobj_ptr->pixel_height = window->height;
+
 	Screen &screen = myobj_ptr->screen;
 	if (!screen.setSizePixels(window->width, window->height)) {
 		return NPERR_NO_ERROR;
@@ -1249,7 +1270,7 @@ void HandleKeyEvent(NpPalmKeyEvent *keyEvent,NPP instance)
 			}
 	#endif
 		if(myobj.showKeyStates)
-			NPN_ForceRedraw(myobj.instance);
+            myobj.redraw();
 		}
 #endif
 }
