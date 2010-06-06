@@ -63,6 +63,7 @@ using namespace std;
 #define PLUGIN_DESCRIPTION PLUGIN_NAME " (Mozilla SDK)"
 #define PLUGIN_VERSION     "1.0.0.0"
 #define PLUGIN_MIMEDESCRIPTION "application/x-webosinternals-termplugin:trm:Term plugin"
+#define USE_OBJECT_CACHE 1
 
 NPNetscapeFuncs NPNFuncs;
 
@@ -151,6 +152,7 @@ static void debugLog(int line, const char *format, ...)
 #endif
 }
 
+#if DEBUG_OUTPUT
 static const char *NPVariantTypeStr(NPVariantType type)
 	{
 	switch(type)
@@ -165,6 +167,7 @@ static const char *NPVariantTypeStr(NPVariantType type)
 		}
 	return "unknown";
 	}
+#endif
 
 #if 0
 void debugLogVariant(int line, NPVariant *var, bool ok, const char *msg)
@@ -205,8 +208,8 @@ struct MyObject : NPObject, KeyManager::Client {
 	NPObject *keyStatesParentObj;
 	bool showKeyStates;
 	bool drawEnabled;
-    int pixel_width;
-    int pixel_height;
+	int pixel_width;
+	int pixel_height;
 
 	MyObject(NPP i);
 	~MyObject();
@@ -276,9 +279,11 @@ struct MyObject : NPObject, KeyManager::Client {
 	void stopSelectThread();
 	static void *selectThread(void *);
 	void runSelect();
-    void redraw();
+	void redraw();
 	static void masterReady(void *obj_ptr);
 	void start(char *user);
+	void updateStty();
+	bool running() const { return spawn_data!=0; }
 };
 
 MyObject::MyObject(NPP i)
@@ -327,6 +332,19 @@ void MyObject::start(char *user)
 	free(user);
 }
 
+void MyObject::updateStty()
+{
+	if (!running()) {
+		return;
+	}
+	Screen::CharBuf &char_buf = screen.charBuf();
+	Spawn_Stty(
+		spawn_data,
+		char_buf.visibleHeight(),
+		char_buf.visibleWidth()
+	);
+}
+
 void MyObject::masterReady(void *obj_ptr)
 {
 	my_fprintf(stderr,"term: masterReady: forcing redraw\n");
@@ -359,11 +377,8 @@ void MyObject::runSelect()
 		NPNFuncs.pluginthreadasynccall(instance,MyObject::masterReady,this);
 #else
 		pthread_mutex_lock(&draw_mutex);
-		fprintf(stderr,"Forcing redraw\n");
-        redraw();
-		fprintf(stderr,"Waiting for redraw\n");
+		redraw();
 		pthread_cond_wait(&drawn_cond,&draw_mutex);
-		fprintf(stderr,"Done redraw\n");
 		pthread_mutex_unlock(&draw_mutex);
 #endif
 	}
@@ -591,6 +606,11 @@ struct InstanceData {
 	InstanceData() : object(0)
 	{
 	}
+
+	~InstanceData()
+	{
+		delete object;
+	}
 };
 
 void logmsgv(const char* desc, NPPVariable variable)
@@ -680,7 +700,12 @@ static void Object_Deallocate(NPObject *npobj)
 {
 	my_fprintf(stderr,"term: In Object_Deallocate\n");
 	my_fprintf(stderr,"term: was asked to delete object @ %p\n",npobj);
-	delete (MyObject *)npobj;
+        if (USE_OBJECT_CACHE) {
+		my_fprintf(stderr,"term: caching object instead\n");
+	}
+	else {
+		delete (MyObject *)npobj;
+	}
 	my_fprintf(stderr,"term: exiting Object_Deallocate\n");
 }
 
@@ -701,7 +726,6 @@ static const SUPPORTED_OBJECTS *ContainsName(const char *callerName, const SUPPO
 	my_fprintf(stderr,"%22s: ", callerName);
 	bool is_string = NPN_IdentifierIsString(name);
 	if (!is_string) {
-		fprintf(stderr,"-- Identifier is not a string.\n");
 		return NULL;
 	}
 	const char *name_str = NPN_UTF8FromIdentifier(name);
@@ -857,14 +881,14 @@ typedef enum
 }eMethods;
 const static SUPPORTED_OBJECTS supported_methods[] =
 {
-		//{ "sendEnter",               eMethod_sendEnter,                0,  "" },
-		{ "setTerminalHeight",       eMethod_setTerminalHeight,        1,  "height" },
-		{ "setFont",                 eMethod_setFont,                  2,  "width, height" },
-		{ "setColors",               eMethod_setColors,                2,  "fgColor, bgColor" },
-		{ "sendTap",                 eMethod_sendTap,                  2,  "x, y" },
-		{ "initialize",              eMethod_initialize,               0,  "" },		//	looks like it wont start w/o this method!!!
-		{ "start",			     	 eMethod_start,			           1,  "user" },
-		{ "redraw",		             eMethod_redraw,	               0,  "" },
+		//{ "sendEnter",        eMethod_sendEnter,        	0,  "" },
+	{ "setTerminalHeight",	eMethod_setTerminalHeight,	1,  "height" },
+	{ "setFont",		eMethod_setFont,          	2,  "width, height" },
+	{ "setColors",		eMethod_setColors,		2,  "fgColor, bgColor" },
+	{ "sendTap",		eMethod_sendTap,		2,  "x, y" },
+	{ "initialize",		eMethod_initialize,		0,  "" },		//	looks like it wont start w/o this method!!!
+	{ "start",		eMethod_start,			1,  "user" },
+	{ "redraw",		eMethod_redraw,			0,  "" },
 		/*
     { "sendMouseDown",           eMethod_sendMouseDown,            0,  "" },
     { "sendMouseUp",             eMethod_sendMouseUp,              0,  "" },
@@ -885,11 +909,11 @@ static bool Object_HasMethod(NPObject *npobj,NPIdentifier name)
 
 static bool
 Object_Invoke(
-		NPObject *npobj,
-		NPIdentifier name,
-		const NPVariant *args,
-		uint32_t argCount,
-		NPVariant *result
+	NPObject *npobj,
+	NPIdentifier name,
+	const NPVariant *args,
+	uint32_t argCount,
+	NPVariant *result
 )
 {
 	const SUPPORTED_OBJECTS *method = ContainsName("Object_Invoke", supported_methods, name);
@@ -918,6 +942,7 @@ Object_Invoke(
 		int width = IntValue(&args[0]);
 		int height = IntValue(&args[1]);
 		myobj.screen.setFont(width,height);
+		myobj.updateStty();
 		FontInfo &font = myobj.screen.font();
 		INT32_TO_NPVARIANT(font.char_height(), (*result));	// tell caller the height of the font
 		my_fprintf(stderr,"  %s(%dx%d) result:%dx%d, returning:%d\n",method->key, width, height, font.char_width(), font.char_height(), font.char_height());
@@ -943,7 +968,12 @@ Object_Invoke(
 	}
 	case eMethod_start:
 	{
-		myobj.start(StringValue(&args[0]));
+		if (myobj.running()) {
+			my_fprintf(stderr,"term: start was called but it was already running.\n");
+		}
+		else {
+			myobj.start(StringValue(&args[0]));
+		}
 		return true;
 	}
 	case eMethod_redraw:
@@ -1073,8 +1103,13 @@ Object_SetProperty(
 
 static NPObject *GetScriptableObject(NPP instance)
 {
-	my_fprintf(stderr,"GetScriptableObject: instance=%p\n",instance);
 	InstanceData *data = (InstanceData *)instance->pdata;
+	my_fprintf(
+		stderr,
+		"GetScriptableObject: instance=%p, data->object=%p\n",
+		instance,
+		data->object
+	);
 	if (!data->object) {
 		static NPClass object_class;
 		object_class.structVersion = NP_CLASS_STRUCT_VERSION;
@@ -1128,7 +1163,7 @@ NP_Shutdown()
 NPError
 NPP_New(NPMIMEType pluginType, NPP instance, uint16_t mode, int16_t argc, char* argn[], char* argv[], NPSavedData* saved) {
 	instance->pdata = new InstanceData;
-	my_fprintf(stderr,"term: NP_New\n");
+	my_fprintf(stderr,"term: NPP_New\n");
 	return NPERR_NO_ERROR;
 }
 
@@ -1154,32 +1189,54 @@ NPP_SetWindow(NPP instance, NPWindow* window) {
 		debugLog(__LINE__, "NPP_SetWindow(window->window:%p)", window->window);
 		return NPERR_NO_ERROR;
 	}
-#if 0
+#if 1
 	debugLog(__LINE__, "NPP_SetWindow(x:%d, y:%d, width:%d, height:%d, type:%d)", window->x, window->y, window->width, window->height, window->type);
 #endif
 
+	if (window->width==0 || window->height==0) {
+		// Whenever we switch to another page, the window will be set to a zero
+		// height to indicate it is destroyed, but we don't want to treat that
+		// like a real change in the window size, which would erase some of
+		// the screen and trigger stty changes.
+		my_fprintf(stderr,"term: ignoring change to zero-sized window.\n");
+		return NPERR_NO_ERROR;
+	}
 	InstanceData *data = (InstanceData *)instance->pdata;
 	MyObject *myobj_ptr = data->object;
 	if (!myobj_ptr) {
+		my_fprintf(stderr,"term: no object.\n");
 		return NPERR_NO_ERROR;
 	}
 
-    myobj_ptr->pixel_width = window->width;
-    myobj_ptr->pixel_height = window->height;
+	myobj_ptr->pixel_width = window->width;
+	myobj_ptr->pixel_height = window->height;
 
 	Screen &screen = myobj_ptr->screen;
-	if (!screen.setSizePixels(window->width, window->height)) {
+	CharBuffer &char_buf = screen.charBuf();
+	int old_visible_width = char_buf.visibleWidth();
+	int old_visible_height = char_buf.visibleHeight();
+	screen.setSizePixels(window->width, window->height);
+	int new_visible_width = char_buf.visibleWidth();
+	int new_visible_height = char_buf.visibleHeight();
+	my_fprintf(stderr,"old size=%dx%d, new size=%dx%d\n",
+		old_visible_width,old_visible_height,
+		new_visible_width,new_visible_height
+	);
+	my_fprintf(
+	  stderr,"old_visible_width==new_visible_width: %d\n",old_visible_width==new_visible_width
+	);
+	my_fprintf(
+	  stderr,"old_visible_height==new_visible_height: %d\n",old_visible_height==new_visible_height
+	);
+	if (new_visible_width==old_visible_width && new_visible_height==old_visible_height) {
+		my_fprintf(stderr,"term: visible size didn't change\n");
 		return NPERR_NO_ERROR;
 	}
-	CharBuffer &char_buf = screen.charBuf();
-	my_fprintf(stderr,"term: visibile size changed: %dx%d\n", char_buf.visibleWidth(), char_buf.visibleHeight());
-        if (myobj_ptr->spawn_data) {
-                Spawn_Stty(
-                        myobj_ptr->spawn_data,
-                        char_buf.visibleHeight(),
-                        char_buf.visibleWidth()
-                );
-        }
+	my_fprintf(
+		stderr,"term: visibile size changed: %dx%d\n",
+		new_visible_width,new_visible_height
+	);
+	myobj_ptr->updateStty();
 	return NPERR_NO_ERROR;
 }
 
@@ -1301,7 +1358,9 @@ void HandleDrawEvent(NpPalmDrawEvent *drawEvent,NPP instance)
 			drawEvent->dstBottom,
 			drawEvent->dstRowBytes
 	);
+#if DEBUG_OUTPUT
 	double start_time = CurrentTime();
+#endif
 	unsigned int *screenBuffer = (unsigned int*) drawEvent->dstBuffer;
 	InstanceData *data = (InstanceData *)instance->pdata;
 	MyObject *myobj_ptr = data->object;
@@ -1411,10 +1470,11 @@ void HandleDrawEvent(NpPalmDrawEvent *drawEvent,NPP instance)
 
 	if(myobj.select_thread_started)
 		pthread_cond_signal(&myobj.drawn_cond);
-	fprintf(stderr,"Done drawing\n");
 	pthread_mutex_unlock(&myobj.draw_mutex);
+#if DEBUG_OUTPUT
 	double end_time = CurrentTime();
-	fprintf(stderr,"Drawing time: %g\n",end_time-start_time);
+	my_fprintf(stderr,"Drawing time: %g\n",end_time-start_time);
+#endif
 }
 
 
@@ -1509,9 +1569,9 @@ NPP_GetValue(NPP instance, NPPVariable variable, void *value) {
 	case NPPVpluginScriptableNPObject:
 		*(NPObject **)value = GetScriptableObject(instance);
 		break;
-	//case npPalmCachePluginValue:
-	//	*(int *)value = 1;
-	//	break;
+	case npPalmCachePluginValue:
+		*(bool *)value = USE_OBJECT_CACHE ? true : false;
+		break;
 	default:
 		return NPERR_GENERIC_ERROR;
 	}

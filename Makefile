@@ -87,7 +87,7 @@ all : $(PLUGIN)
 pre:	$(PRE_OUT_DIR) $(PRE_PLUGIN)
 
 $(PLUGIN): $(OBJS)
-	$(CC)  $(LDFLAGS) -shared $(OBJS) -o $(PLUGIN)
+	$(LD)  $(LDFLAGS) -shared $(OBJS) -o $(PLUGIN)
 
 install : $(PLUGIN)
 	scp -P $(EMPORT) $(PLUGIN) root@$(EMHOST):/usr/lib/BrowserPlugins/; echo done

@@ -42,7 +42,10 @@ static void child_exec(char **argv)
 	exit(EXIT_FAILURE);
 }
 
+#if 0
 static void (*orig_child_signal_handler)(int) = 0;
+#endif
+
 typedef void *ClientData;
 
 static void set_fl(int fd,int flags)

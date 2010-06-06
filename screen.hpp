@@ -38,16 +38,12 @@ public:
 	}
 
 	// returns false if the size was the same.
-	bool setSizePixels(int width,int height)
+	void setSizePixels(int width,int height)
 	{
-		if (width==_width_pixels && height==_height_pixels) {
-			return false;
-		}
 		_width_pixels = width;
 		_height_pixels = height;
 		_updateCharBufSize();
 		_updateCharBufVisibleSize();
-		return true;
 	}
 
 	CharBuf &charBuf() { return _char_buf; }
@@ -90,6 +86,7 @@ private:
 		int vis_width_chars = _width_pixels/font.char_width();
 		int vis_height_chars = _visible_height_pixels/font.char_height();
 
+		my_fprintf(stderr,"term: vis_width_chars=%d\n",vis_width_chars);
 		_char_buf.setVisibleWidth(vis_width_chars);
 		_char_buf.setVisibleHeight(vis_height_chars);
 	}

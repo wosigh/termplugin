@@ -39,7 +39,7 @@ bool CharBuffer::setSize(int new_width, int new_height)
 		// it's ok, we have no need to resize
 		return false;
 	}
-	fprintf(stderr,"Changing size from %dx%d to %dx%d\n",_width,_height,new_width,new_height);
+	my_fprintf(stderr,"Changing size from %dx%d to %dx%d\n",_width,_height,new_width,new_height);
 	int new_size = new_width * new_height;
 	CellBuffer *tmp = (new_size==0) ? 0 : new CellBuffer [new_size];
 	int maxCol = min(new_width, _width);

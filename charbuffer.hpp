@@ -54,7 +54,9 @@ public:
 
 	void setVisibleHeight(int value)
 	{
-		assert(value<=_height);
+		if (value>_height) {
+			value = _height;
+		}
 		if (value<_cursor.screenHeight()) {
 			// If we make it smaller, and the cursor position is still on the
 			// screen, then we want to scroll down, so that the text on the top
