@@ -1,3 +1,4 @@
+#include "stdio.h"
 #include "termplugin.h"
 #include "common.h"
 #include "api.h"

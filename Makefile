@@ -42,52 +42,22 @@
 
 # Release
 OPTIMIZATION=-DNDEBUG -O2 -fexpensive-optimizations -fomit-frame-pointer -frename-registers -fvisibility-inlines-hidden
-PRE_OPTIMIZATION=-march=armv4t -mtune=arm920t
 
-#CXXFLAGS = -MD -Wall -DXP_UNIX=1 -fPIC $(OPTIMIZATION) `pkg-config --cflags glib-2.0`
 CXXFLAGS = -MD -Wall -DXP_UNIX=1 -fPIC $(OPTIMIZATION)
-CFLAGS = $(CXXFLAGS)
-#LDFLAGS = `pkg-config --libs glib-2.0`
 LDFLAGS =
 CC = g++
-
-ifeq ($(PRE_DEV_PREFIX),)
-	PRE_DEV_DIR:=$(shell [ -d /usr/local/arm-2009q1 ] && echo /usr/local/arm-2009q1 || echo /pre/optware/cs08q1armel/toolchain/arm-2008q1)
-	PRE_DEV_PREFIX=$(PRE_DEV_DIR)/bin/arm-none-linux-gnueabi-
-endif
-PRE_CC = $(PRE_DEV_PREFIX)g++
-
-PRE_STRIP = $(PRE_DEV_PREFIX)strip
-PRE_CXXFLAGS = -Wall -DXP_UNIX=1 -fPIC $(OPTIMIZATION) $(PRE_OPTIMIZATION) -I$(PRE_DEV_DIR)/include
-PRE_CFLAGS = $(PRE_CXXFLAGS)
-PRE_LDFLAGS = $(OPTIMIZATION) $(PRE_OPTIMIZATION)
-PRE_OUT_DIR=pre-out
+CXX = ${CC}
 
 EMHOST = localhost
 EMPORT = 5522
 PLUGIN=termplugin.so
-PRE_PLUGIN=$(PRE_OUT_DIR)/termplugin.so
 
-OBJS=screen.o \
-keyman.o termstate.o spawndata.o spawn.o pty.o charbuffer.o pixelbuffer.o termplugin.o fontinfo.o api.o
-PRE_OBJS = \
-	$(PRE_OUT_DIR)/keyman.o \
-	$(PRE_OUT_DIR)/termstate.o \
-	$(PRE_OUT_DIR)/spawndata.o \
-	$(PRE_OUT_DIR)/spawn.o \
-	$(PRE_OUT_DIR)/pty.o \
-	$(PRE_OUT_DIR)/charbuffer.o \
-	$(PRE_OUT_DIR)/pixelbuffer.o \
-	$(PRE_OUT_DIR)/termplugin.o \
-	$(PRE_OUT_DIR)/fontinfo.o \
-	$(PRE_OUT_DIR)/api.o \
+OBJS=screen.o keyman.o termstate.o spawndata.o spawn.o pty.o charbuffer.o pixelbuffer.o termplugin.o fontinfo.o api.o
 
 all : $(PLUGIN)
 
-pre:	$(PRE_OUT_DIR) $(PRE_PLUGIN)
-
 $(PLUGIN): $(OBJS)
-	$(LD)  $(LDFLAGS) -shared $(OBJS) -o $(PLUGIN)
+	$(CXX) $(LDFLAGS) -shared $(OBJS) -o $(PLUGIN)
 
 install : $(PLUGIN)
 	scp -P $(EMPORT) $(PLUGIN) root@$(EMHOST):/usr/lib/BrowserPlugins/; echo done
@@ -100,37 +70,4 @@ get:
 	(cd pre;tar zcvf ../termplugin_pre_so.tar.gz termplugin.so)
 
 clean :
-	rm -f $(PLUGIN) $(OBJS) $(PRE_OBJS) *.d
-	touch dummy.d
-spotless: clean
-	rm -f $(PRE_PLUGIN)
-	( [ -d $(PRE_OUT_DIR) ] && rmdir -p $(PRE_OUT_DIR) || true )
-
--include *.d
-
-$(PRE_PLUGIN): $(PRE_OBJS)
-	$(PRE_CC) $(PRE_LDFLAGS) -shared $(PRE_OBJS) -o $@
-
-$(PRE_OUT_DIR):
-	mkdir -p $(PRE_OUT_DIR)
-
-$(PRE_OUT_DIR)/keyman.o : keyman.cpp
-	$(PRE_CC) $(PRE_CXXFLAGS) -c $< -o $@
-$(PRE_OUT_DIR)/termstate.o : termstate.c
-	$(PRE_CC) $(PRE_CFLAGS) -c $< -o $@
-$(PRE_OUT_DIR)/spawndata.o : spawndata.c
-	$(PRE_CC) $(PRE_CFLAGS) -c $< -o $@
-$(PRE_OUT_DIR)/spawn.o : spawn.c
-	$(PRE_CC) $(PRE_CFLAGS) -c $< -o $@
-$(PRE_OUT_DIR)/pty.o : pty.c
-	$(PRE_CC) $(PRE_CFLAGS) -c $< -o $@
-$(PRE_OUT_DIR)/api.o : api.c
-	$(PRE_CC) $(PRE_CFLAGS) -c $< -o $@
-$(PRE_OUT_DIR)/charbuffer.o : charbuffer.cpp
-	$(PRE_CC) $(PRE_CXXFLAGS) -c $< -o $@
-$(PRE_OUT_DIR)/pixelbuffer.o : pixelbuffer.cpp
-	$(PRE_CC) $(PRE_CXXFLAGS) -c $< -o $@
-$(PRE_OUT_DIR)/termplugin.o : termplugin.cpp
-	$(PRE_CC) $(PRE_CXXFLAGS) -c $< -o $@
-$(PRE_OUT_DIR)/fontinfo.o : fontinfo.cpp
-	$(PRE_CC) $(PRE_CXXFLAGS) -c $< -o $@
+	rm -f $(PLUGIN) $(OBJS)
